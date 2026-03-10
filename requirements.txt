@@ -29,6 +29,7 @@ platformdirs==4.7.1
 prompt_toolkit==3.0.52
 psutil==7.2.2
 ptyprocess==0.7.0
+PuLP==3.3.0
 pure_eval==0.2.3
 pycparser==3.0
 Pygments==2.19.2
@@ -43,6 +44,7 @@ sympy==1.14.0
 torch==2.10.0
 torchvision==0.25.0
 tornado==6.5.4
+tqdm==4.67.3
 traitlets==5.14.3
 typing_extensions==4.15.0
 tzdata==2025.3

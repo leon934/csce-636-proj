@@ -19,12 +19,16 @@ def main():
         (9, 6, 2), (9, 6, 3)
     ]
     # For theory models, we only iterate over n and k (m is handled inside)
-    theory_combinations = [(9, 4), (9, 5), (9, 6)]
+    theory_combinations = [
+        # (9, 4), 
+        (9, 5),
+        # (9, 6)
+    ]
 
     processes = []
     
     if arch_name in theory_models:
-        print(f"Starting 3 parallel THEORY training processes using: {arch_name}...")
+        print(f"Starting {len(theory_combinations)} parallel THEORY training processes using: {arch_name}...")
         for n, k in theory_combinations:
             print(f"Launching theory process for n={n}, k={k}")
             cmd = [
@@ -38,7 +42,7 @@ def main():
             processes.append(p)
             
     else:
-        print(f"Starting 9 parallel SEPARATE training processes using: {arch_name}...")
+        print(f"Starting {len(standard_combinations)} parallel SEPARATE training processes using: {arch_name}...")
         for n, k, m in standard_combinations:
             print(f"Launching standard process for n={n}, k={k}, m={m}")
             cmd = [

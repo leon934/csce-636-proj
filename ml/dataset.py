@@ -22,7 +22,7 @@ class MHeightDataset(Dataset):
             
             for p_bytes, m_height in rows:
                 # Reconstruct the numpy array. Ensure the dtype matches how it was saved.
-                p_array = np.frombuffer(p_bytes, dtype=np.int8)
+                p_array = np.frombuffer(p_bytes, dtype=np.int8).astype(np.float32)
                 
                 # Reshape to the expected k x (n-k) dimensions
                 p_matrix = p_array.reshape(self.k, self.n - self.k)
@@ -66,7 +66,7 @@ class CombinedMHeightDataset(Dataset):
                 cursor.execute(f'SELECT p_matrix, m_height FROM "{table_name}"')
                 rows = cursor.fetchall()
                 for p_bytes, m_height in rows:
-                    p_array = np.frombuffer(p_bytes, dtype=np.float32)
+                    p_array = np.frombuffer(p_bytes, dtype=np.int8).astype(np.float32)
                     p_matrix = p_array.reshape(self.k, self.n - self.k)
                     # Store the matrix, the integer m, and the true height
                     self.data.append((p_matrix, float(m), float(m_height)))

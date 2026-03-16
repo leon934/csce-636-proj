@@ -293,3 +293,166 @@ class ResMLP(nn.Module):
         x = F.relu(self.input_layer(x))
         x = self.res_blocks(x)
         return self.fc_out(x)
+
+class TannerGNN(nn.Module):
+    """
+    Treats the matrix P as an adjacency matrix for a bipartite graph.
+    Passes messages between row nodes and column nodes.
+    """
+    def __init__(self, n, k, embed_dim=32):
+        super(TannerGNN, self).__init__()
+        self.k = k
+        self.cols = n - k
+        
+        # Linear layers to process the messages
+        self.row_to_col = nn.Linear(k, embed_dim)
+        self.col_to_row = nn.Linear(self.cols, embed_dim)
+        
+        # Final regression head
+        self.fc1 = nn.Linear(embed_dim * 2, 64)
+        self.fc2 = nn.Linear(64, 1)
+
+    def forward(self, x):
+        # x shape: (batch_size, k * cols)
+        P = x.view(-1, self.k, self.cols)
+        
+        # Step 1: Column nodes receive messages from Row nodes (P^T * rows)
+        # Since we don't have explicit node features, we process the P matrix itself
+        # P transposed is (batch_size, cols, k)
+        col_messages = F.relu(self.row_to_col(P.transpose(1, 2)))
+        
+        # Step 2: Row nodes receive messages from Column nodes
+        row_messages = F.relu(self.col_to_row(P))
+        
+        # Step 3: Global pooling (mean over the nodes)
+        col_pooled = col_messages.mean(dim=1) # (batch_size, embed_dim)
+        row_pooled = row_messages.mean(dim=1) # (batch_size, embed_dim)
+        
+        # Combine the graph representations
+        graph_embed = torch.cat([row_pooled, col_pooled], dim=1)
+        
+        out = F.relu(self.fc1(graph_embed))
+        return self.fc2(out)
+    
+class NeuralSortNet(nn.Module):
+    """
+    Projects the matrix into simulated codeword features, physically sorts them 
+    in descending order, and learns the m-height from the sorted distribution.
+    """
+    def __init__(self, n, k, num_features=16):
+        super(NeuralSortNet, self).__init__()
+        self.k = k
+        self.cols = n - k
+        input_size = k * (n - k)
+        self.num_features = num_features
+        
+        # Project matrix into a set of values (simulating a codeword)
+        self.projector = nn.Linear(input_size, num_features)
+        
+        # The MLP now only looks at strictly ordered, sorted data
+        self.fc1 = nn.Linear(num_features, 64)
+        self.fc2 = nn.Linear(64, 32)
+        self.fc3 = nn.Linear(32, 1)
+
+    def forward(self, x):
+        # Generate simulated codeword features
+        raw_features = self.projector(x)
+        
+        # The algorithmic alignment step: Sort the features!
+        # torch.sort()[0] returns the values, which maintain gradient history
+        sorted_features, _ = torch.sort(raw_features, dim=1, descending=True)
+        
+        # Predict based on the sorted distribution
+        out = F.relu(self.fc1(sorted_features))
+        out = F.relu(self.fc2(out))
+        return self.fc3(out)
+    
+class UnrolledDEQ(nn.Module):
+    """
+    Approximates an Implicit layer by running a recurrent unrolled loop.
+    Simulates finding a fixed-point "worst-case" equilibrium before predicting.
+    """
+    def __init__(self, n, k, hidden_dim=64, iterations=5):
+        super(UnrolledDEQ, self).__init__()
+        input_size = k * (n - k)
+        self.iterations = iterations
+        
+        # Feature extractor
+        self.embed_x = nn.Linear(input_size, hidden_dim)
+        
+        # The "Equilibrium" layer (Weight-tied recurrent step)
+        self.W_z = nn.Linear(hidden_dim, hidden_dim, bias=False)
+        self.W_x = nn.Linear(hidden_dim, hidden_dim)
+        
+        # Readout
+        self.fc_out = nn.Linear(hidden_dim, 1)
+
+    def forward(self, x):
+        # Initial projection
+        x_embed = self.embed_x(x)
+        
+        # Initialize hidden state z at zero
+        z = torch.zeros_like(x_embed)
+        
+        # Unroll the fixed-point iteration loop
+        # z_{t+1} = ReLU(W_z * z_t + W_x * x)
+        for _ in range(self.iterations):
+            z = F.relu(self.W_z(z) + self.W_x(x_embed))
+            
+        # Predict from the final equilibrium state
+        return self.fc_out(z)
+
+class MathFeatureMLP(nn.Module):
+    """
+    Calculates explicit linear algebra features from P on the fly, 
+    concatenates them, and feeds them into a wider MLP.
+    """
+    def __init__(self, n, k):
+        super(MathFeatureMLP, self).__init__()
+        self.n = n
+        self.k = k
+        self.cols = n - k
+        
+        # Calculate the exact number of features we are generating
+        p_elements = k * self.cols
+        gram_col_elements = self.cols * self.cols  # P^T P
+        gram_row_elements = k * k                  # P P^T
+        svd_elements = min(k, self.cols)           # Singular values
+        
+        # The new massive input dimension
+        total_input_size = p_elements + gram_col_elements + gram_row_elements + svd_elements
+        
+        self.fc1 = nn.Linear(total_input_size, 256)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, 64)
+        self.fc4 = nn.Linear(64, 1)
+
+    def forward(self, x):
+        # 1. Reconstruct the P matrix
+        P = x.view(-1, self.k, self.cols)
+        
+        # 2. Calculate Gram Matrices (Linear independence and angles)
+        # P^T * P (Column relationships)
+        P_t = P.transpose(1, 2)
+        gram_cols = torch.bmm(P_t, P).view(x.size(0), -1) 
+        
+        # P * P^T (Row relationships)
+        gram_rows = torch.bmm(P, P_t).view(x.size(0), -1)
+        
+        # 3. Calculate Singular Values (The absolute stretching limits of the matrix)
+        # We use a try/except block because SVD can occasionally fail to converge 
+        # on perfectly singular, highly degenerate matrices during backprop.
+        try:
+            svd_vals = torch.linalg.svdvals(P)
+        except torch._C._LinAlgError:
+            # Fallback to zeros if SVD fails for a specific bizarre batch
+            svd_vals = torch.zeros(x.size(0), min(self.k, self.cols), device=x.device)
+            
+        # 4. Concatenate all mathematical features together
+        enhanced_features = torch.cat([x, gram_cols, gram_rows, svd_vals], dim=1)
+        
+        # 5. Pass the math-enriched data through the network
+        out = F.relu(self.fc1(enhanced_features))
+        out = F.relu(self.fc2(out))
+        out = F.relu(self.fc3(out))
+        return self.fc4(out)

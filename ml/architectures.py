@@ -258,3 +258,36 @@ class ResColumnCNN(nn.Module):
         x = F.relu(self.fc2(x))
         
         return self.fc3(x)
+
+class ResBlock(nn.Module):
+    def __init__(self, dim):
+        super(ResBlock, self).__init__()
+        self.fc1 = nn.Linear(dim, dim)
+        self.fc2 = nn.Linear(dim, dim)
+
+    def forward(self, x):
+        # Skip connection: Add original x to the output
+        residual = x
+        out = F.relu(self.fc1(x))
+        out = self.fc2(out)
+        return F.relu(out + residual)
+
+class ResMLP(nn.Module):
+    def __init__(self, n, k):
+        super(ResMLP, self).__init__()
+        input_size = k * (n - k)
+        hidden_dim = 128
+        
+        self.input_layer = nn.Linear(input_size, hidden_dim)
+        # Stack 3 Residual Blocks
+        self.res_blocks = nn.Sequential(
+            ResBlock(hidden_dim),
+            ResBlock(hidden_dim),
+            ResBlock(hidden_dim)
+        )
+        self.fc_out = nn.Linear(hidden_dim, 1)
+
+    def forward(self, x):
+        x = F.relu(self.input_layer(x))
+        x = self.res_blocks(x)
+        return self.fc_out(x)

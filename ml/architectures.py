@@ -220,23 +220,25 @@ class ResColumnCNN(nn.Module):
         self.n = n
         self.k = k
         self.cols = n - k
+
+        self.width = 512
         
         # 1. Initial projection layer
         # Projects the varying 'k' input channels into a stable 32 feature channels
-        self.init_conv = nn.Conv1d(in_channels=k, out_channels=32, kernel_size=3, padding=1)
+        self.init_conv = nn.Conv1d(in_channels=k, out_channels=self.width, kernel_size=3, padding=1)
         
         # 2. Residual Blocks
         # We can stack these safely because the skip connections prevent gradient loss
-        self.res_block1 = Conv1dResBlock(32)
-        self.res_block2 = Conv1dResBlock(32)
+        self.res_block1 = Conv1dResBlock(self.width)
+        self.res_block2 = Conv1dResBlock(self.width)
         
         # 3. Pooling and FC Layers (same as the original ColumnCNN)
         self.pool = nn.AdaptiveAvgPool1d(2)
         
         # 32 channels * 2 pooled features = 64 input features
-        self.fc1 = nn.Linear(32 * 2, 64)
-        self.fc2 = nn.Linear(64, 32)
-        self.fc3 = nn.Linear(32, 1)
+        self.fc1 = nn.Linear(self.width * 2, 256)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, 1)
 
     def forward(self, x):
         # Reshape flattened input to (batch_size, channels=k, sequence_length=cols)

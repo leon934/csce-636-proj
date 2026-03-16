@@ -55,9 +55,9 @@ def train_theory_model(n, k, arch_name):
     test_size = len(dataset) - train_size - val_size
     
     train_ds, val_ds, test_ds = random_split(dataset, [train_size, val_size, test_size], generator=torch.Generator().manual_seed(42))
-    train_loader = DataLoader(train_ds, batch_size=64, shuffle=True)
-    val_loader = DataLoader(val_ds, batch_size=64, shuffle=False)
-    test_loader = DataLoader(test_ds, batch_size=64, shuffle=False)
+    train_loader = DataLoader(train_ds, batch_size=1024, shuffle=True)
+    val_loader = DataLoader(val_ds, batch_size=1024, shuffle=False)
+    test_loader = DataLoader(test_ds, batch_size=1024, shuffle=False)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     

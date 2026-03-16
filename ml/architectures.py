@@ -41,7 +41,8 @@ class ColumnCNN(nn.Module):
         
         # Because the number of columns (n-k) changes based on the input parameters (ranging from 3 to 5),
         # an AdaptiveAvgPool1d forces the output to a fixed size (e.g., 2) before hitting the linear layers.
-        self.pool = nn.AdaptiveAvgPool1d(2)
+        # self.pool = nn.AdaptiveAvgPool1d(2)
+        self.pool = nn.AdaptiveMaxPool1d(2)
         
         # 32 channels * 2 pooled features = 64 input features for the fully connected layer
         self.fc1 = nn.Linear(32 * 2, 64)
@@ -110,7 +111,8 @@ class TheoryColumnCNN(nn.Module):
         # Convolution across the n-k columns
         self.conv1 = nn.Conv1d(in_channels=k, out_channels=16, kernel_size=2, padding=1)
         self.conv2 = nn.Conv1d(in_channels=16, out_channels=32, kernel_size=2, padding=1)
-        self.pool = nn.AdaptiveAvgPool1d(2)
+        # self.pool = nn.AdaptiveAvgPool1d(2)
+        self.pool = nn.AdaptiveMaxPool1d(2)
         
         # 32 channels * 2 pooled features = 64 CNN features
         # + 1 feature for the 'm' parameter = 65 total input features for the dense layer
@@ -188,3 +190,71 @@ class ColumnTransformer(nn.Module):
         # Final fully connected layers
         x = F.relu(self.fc1(x))
         return self.fc2(x)
+
+class Conv1dResBlock(nn.Module):
+    """
+    A standard 1D Residual Block. 
+    Keeps channel count and sequence length identical so the skip connection can be added.
+    """
+    def __init__(self, channels):
+        super(Conv1dResBlock, self).__init__()
+        # kernel_size=3 and padding=1 ensures the sequence length (number of columns) doesn't shrink
+        self.conv1 = nn.Conv1d(channels, channels, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv1d(channels, channels, kernel_size=3, padding=1)
+
+    def forward(self, x):
+        residual = x
+        out = F.relu(self.conv1(x))
+        out = self.conv2(out)
+        # The magic happens here: add the original input before the final activation
+        out += residual
+        return F.relu(out)
+
+class ResColumnCNN(nn.Module):
+    """
+    Upgrades the ColumnCNN by integrating deep Residual Blocks.
+    Excellent for learning highly non-linear functions without vanishing gradients.
+    """
+    def __init__(self, n, k):
+        super(ResColumnCNN, self).__init__()
+        self.n = n
+        self.k = k
+        self.cols = n - k
+        
+        # 1. Initial projection layer
+        # Projects the varying 'k' input channels into a stable 32 feature channels
+        self.init_conv = nn.Conv1d(in_channels=k, out_channels=32, kernel_size=3, padding=1)
+        
+        # 2. Residual Blocks
+        # We can stack these safely because the skip connections prevent gradient loss
+        self.res_block1 = Conv1dResBlock(32)
+        self.res_block2 = Conv1dResBlock(32)
+        
+        # 3. Pooling and FC Layers (same as the original ColumnCNN)
+        self.pool = nn.AdaptiveAvgPool1d(2)
+        
+        # 32 channels * 2 pooled features = 64 input features
+        self.fc1 = nn.Linear(32 * 2, 64)
+        self.fc2 = nn.Linear(64, 32)
+        self.fc3 = nn.Linear(32, 1)
+
+    def forward(self, x):
+        # Reshape flattened input to (batch_size, channels=k, sequence_length=cols)
+        x = x.view(-1, self.k, self.cols)
+        
+        # Initial projection
+        x = F.relu(self.init_conv(x))
+        
+        # Pass through the ResBlocks
+        x = self.res_block1(x)
+        x = self.res_block2(x)
+        
+        # Pool to a fixed size and flatten
+        x = self.pool(x)
+        x = x.view(x.size(0), -1) 
+        
+        # Fully connected regression head
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        
+        return self.fc3(x)

@@ -221,7 +221,7 @@ class ResColumnCNN(nn.Module):
         self.k = k
         self.cols = n - k
 
-        self.width = 512
+        self.width = 256
         
         # 1. Initial projection layer
         # Projects the varying 'k' input channels into a stable 32 feature channels
@@ -230,7 +230,8 @@ class ResColumnCNN(nn.Module):
         # 2. Residual Blocks
         # We can stack these safely because the skip connections prevent gradient loss
         self.res_block1 = Conv1dResBlock(self.width)
-        self.res_block2 = Conv1dResBlock(self.width)
+        # self.res_block2 = Conv1dResBlock(self.width)
+        # self.res_block3 = Conv1dResBlock(self.width)
         
         # 3. Pooling and FC Layers (same as the original ColumnCNN)
         self.pool = nn.AdaptiveAvgPool1d(2)
@@ -249,7 +250,8 @@ class ResColumnCNN(nn.Module):
         
         # Pass through the ResBlocks
         x = self.res_block1(x)
-        x = self.res_block2(x)
+        # x = self.res_block2(x)
+        # x = self.res_block3(x)
         
         # Pool to a fixed size and flatten
         x = self.pool(x)

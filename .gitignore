@@ -4,3 +4,8 @@ __pycache__
 /model
 /logs
 /logs-laptop
+/highs
+*.tar.gz
+/models
+/longer_model
+*.zip

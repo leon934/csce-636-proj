@@ -14,7 +14,7 @@ def gen_valid_P_matrix(n, k, m):
         P = np.random.randint(-100, 101, size=(k, n - k), dtype=np.int8)
         G = np.hstack((np.eye(k), P))
 
-        if (m_height := calculate_m_height(n, k, m, G)) != float("inf"):
+        if (m_height := calculate_m_height(n, k, m, G)) != float("inf") and m_height != 0:
             return P, m_height
 
 def data_gen(n, k, m):
@@ -49,7 +49,7 @@ def data_gen(n, k, m):
     with open("data/CSCE-636-Project-1-Train-mHeights", "rb") as f:
         orig_m_heights = pickle.load(f)
 
-    for curr_n, curr_k, curr_m, P, m_height in zip(orig_nkmPs, orig_m_heights):
+    for (curr_n, curr_k, curr_m, P), m_height in zip(orig_nkmPs, orig_m_heights):
         P = P.astype(np.int8)
 
         if curr_n == n and curr_k == k and curr_m == m:

@@ -27,7 +27,7 @@ def LP(S, j, G, k, n):
         lp_problem += expr >= -1
 
     # Solve quietly
-    lp_problem.solve(pulp.HiGHS_CMD(msg=False))
+    lp_problem.solve(pulp.HiGHS(msg=False))
 
     # Handle statuses
     if lp_problem.status == pulp.LpStatusInfeasible:

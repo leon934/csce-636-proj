@@ -15,10 +15,10 @@ def main():
     theory_models = ["TheoryMLP", "TheoryColumnCNN"]
     standard_combinations = [
         (9, 4, 2), 
-        # (9, 4, 3), (9, 4, 4), 
-        # (9, 4, 5),
-        # (9, 5, 2), (9, 5, 3), (9, 5, 4),
-        # (9, 6, 2), (9, 6, 3)
+        (9, 4, 3), (9, 4, 4), 
+        (9, 4, 5),
+        (9, 5, 2), (9, 5, 3), (9, 5, 4),
+        (9, 6, 2), (9, 6, 3)
     ]
     # For theory models, we only iterate over n and k (m is handled inside)
     theory_combinations = [

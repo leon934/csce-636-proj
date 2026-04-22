@@ -61,9 +61,11 @@ def train_model(n, k, m, arch_name):
         
     backbone = BackboneClass(n=n, k=k) 
     model = MHeightModelWrapper(backbone).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    learning_rate = 0.002
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     
-    for epoch in range(20):
+    for epoch in range(50):
         model.train()
         train_loss = 0.0
         for X_batch, y_batch in train_loader:
@@ -82,7 +84,7 @@ def train_model(n, k, m, arch_name):
     final_test = evaluate_model(model, test_loader, device)
     logger.info(f"Final Test Loss for {arch_name}: {final_test:.6f}")
 
-    save_path = f"model/n{n}_k{k}_m{m}/{arch_name}_n{n}_k{k}_m{m}.pth"
+    save_path = f"longer_model/n{n}_k{k}_m{m}/{arch_name}_n{n}_k{k}_m{m}_.pth"
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     torch.save(model.state_dict(), save_path)
 

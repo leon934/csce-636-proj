@@ -17,7 +17,7 @@ def main():
     ]
 
     # The name of your worker script
-    worker_script = "data_gen.py"
+    worker_script = "./data_gen/data_gen.py"
     
     processes = []
 

@@ -9,3 +9,4 @@ __pycache__
 /models
 /longer_model
 *.zip
+/submission*

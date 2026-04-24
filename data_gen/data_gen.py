@@ -43,22 +43,28 @@ def data_gen(n, k, m):
     for row in cursor:
         P_matrices.add(row[0])
 
-    with open("data/CSCE-636-Project-1-Train-n_k_m_P", "rb") as f:
-        orig_nkmPs = pickle.load(f)
-    
-    with open("data/CSCE-636-Project-1-Train-mHeights", "rb") as f:
-        orig_m_heights = pickle.load(f)
+    source_files = [
+        ("data/CSCE-636-Project-1-Train-n_k_m_P", "data/CSCE-636-Project-1-Train-mHeights"),
+        ("data/CSCE-636-Project-3-Train-n_k_m_P", "data/CSCE-636-Project-3-Train-mHeights"),
+    ]
 
-    for (curr_n, curr_k, curr_m, P), m_height in zip(orig_nkmPs, orig_m_heights):
-        P = P.astype(np.int8)
+    for nkmp_path, heights_path in source_files:
+        with open(nkmp_path, "rb") as f:
+            orig_nkmPs = pickle.load(f)
 
-        if curr_n == n and curr_k == k and curr_m == m:
-            P_bytes = P.tobytes()
+        with open(heights_path, "rb") as f:
+            orig_m_heights = pickle.load(f)
 
-            if P_bytes not in P_matrices:
-                P_matrices.add(P_bytes)
-                conn.execute(f'INSERT OR IGNORE INTO "{table_name}" (p_matrix, m_height) VALUES (?, ?)', 
-                                 (P_bytes, m_height))
+        for (curr_n, curr_k, curr_m, P), m_height in zip(orig_nkmPs, orig_m_heights):
+            P = P.astype(np.int8)
+
+            if curr_n == n and curr_k == k and curr_m == m:
+                P_bytes = P.tobytes()
+
+                if P_bytes not in P_matrices:
+                    P_matrices.add(P_bytes)
+                    conn.execute(f'INSERT OR IGNORE INTO "{table_name}" (p_matrix, m_height) VALUES (?, ?)',
+                                     (P_bytes, m_height))
     conn.commit()
 
     # keep saved file as the np arr, not the bytes vers.

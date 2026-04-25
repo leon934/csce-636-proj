@@ -4,8 +4,6 @@ from datetime import datetime
 
 sys.path.insert(0, "ml_v3/local")
 
-from dataset       import MHeightDataset
-from architectures import DeepSetsNet
 from train         import train_combo
 
 logging.basicConfig(
